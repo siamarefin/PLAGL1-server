@@ -41,7 +41,7 @@ def plot_correlation_clustermap(input_file, output_dir, drop_column):
         )
 
         # Set title
-        plt.suptitle('Pearson Correlation Clustermap', fontsize=16)
+        # plt.suptitle('Pearson Correlation Clustermap', fontsize=16)
 
         # Save the plot as a PDF and PNG file
         pdf_path = os.path.join(output_dir, 'Pearson_Correlation_Clustermap.pdf')

@@ -1,0 +1,12 @@
+Top 10 Feature Importance Scores:
+Feature  Importance
+ ZNF212    0.092280
+   RRAD    0.084187
+  NFAT5    0.083877
+ ZNF451    0.083376
+  NUP58    0.075759
+  ICAM5    0.071090
+ PLAGL1    0.070794
+ PIK3CD    0.063569
+ ZNF266    0.059423
+  DHX38    0.057302
