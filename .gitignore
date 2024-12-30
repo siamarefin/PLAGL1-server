@@ -2,3 +2,5 @@
 *.pdf
 *.png
 *.csv
+*.vscode
+*api/venv
