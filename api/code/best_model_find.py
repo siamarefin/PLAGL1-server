@@ -17,11 +17,11 @@ import numpy as np
 
 
 
-# Define classifiers and hyperparameter grids
 classifiers = {
     'Logistic Regression': LogisticRegression(max_iter=1000, random_state=123),
     'Extra Trees': ExtraTreesClassifier(random_state=123),
     'Random Forest': RandomForestClassifier(random_state=123),
+    'LightGBM': LGBMClassifier(random_state=123, verbosity=-1),
     'XGBoost': XGBClassifier(eval_metric='logloss', random_state=123),
     'Gradient Boosting': GradientBoostingClassifier(random_state=123),
     'SVM': SVC(probability=True, random_state=123),
@@ -107,10 +107,10 @@ def benchmark_models(input_file, output_dir):
                 auc = roc_auc_score(y, y_pred_proba)
                 auprc = average_precision_score(y, y_pred_proba)
 
-            # Optimize threshold for F1-Score
-            thresholds = [t / 100 for t in range(0, 100)]
+            # Optimize threshold for F1-score
+            thresholds = np.arange(0, 1, 0.01)
             best_f1, best_threshold = max(
-                (f1_score(y, (y_pred_proba > t).astype(int)), t) for t in thresholds
+                (f1_score(y, (y_pred_proba_original > t).astype(int)), t) for t in thresholds
             )
             y_pred = (y_pred_proba > best_threshold).astype(int)
             accuracy = accuracy_score(y, y_pred)
