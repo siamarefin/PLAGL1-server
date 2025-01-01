@@ -12,16 +12,13 @@ from sklearn.naive_bayes import GaussianNB
 from sklearn.neighbors import KNeighborsClassifier
 from xgboost import XGBClassifier
 import os
-import sys
 import numpy as np
 
-
-
+# Define classifiers and hyperparameter grids
 classifiers = {
     'Logistic Regression': LogisticRegression(max_iter=1000, random_state=123),
     'Extra Trees': ExtraTreesClassifier(random_state=123),
     'Random Forest': RandomForestClassifier(random_state=123),
-    'LightGBM': LGBMClassifier(random_state=123, verbosity=-1),
     'XGBoost': XGBClassifier(eval_metric='logloss', random_state=123),
     'Gradient Boosting': GradientBoostingClassifier(random_state=123),
     'SVM': SVC(probability=True, random_state=123),
@@ -47,11 +44,6 @@ param_grids = {
         'max_depth': [None, 10, 20],
         'min_samples_split': [2, 5, 10]
     },
-    'LightGBM': {
-        'n_estimators': [50, 100, 200],
-        'learning_rate': [0.01, 0.1, 0.2],
-        'max_depth': [-1, 10, 20]
-    },
     'XGBoost': {
         'n_estimators': [50, 100, 200],
         'learning_rate': [0.01, 0.1, 0.2],
@@ -72,7 +64,6 @@ param_grids = {
     }
 }
 
-
 def benchmark_models(input_file, output_dir):
     try:
         # Load dataset
@@ -86,42 +77,62 @@ def benchmark_models(input_file, output_dir):
         cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=123)
 
         metrics = []
+        roc_curves = {}
+        pr_curves = {}
 
         # Benchmark each classifier
         for name, model in classifiers.items():
             print(f"Evaluating {name}...")
 
-            # Cross-validation predictions
-            y_pred_proba = cross_val_predict(model, X, y, cv=cv, method='predict_proba', n_jobs=-1)[:, 1]
-            auc = roc_auc_score(y, y_pred_proba)
-            auprc = average_precision_score(y, y_pred_proba)
+            # Cross-validation predictions for the original model
+            y_pred_proba_original = cross_val_predict(model, X, y, cv=cv, method='predict_proba', n_jobs=-1)[:, 1]
+            original_auc = roc_auc_score(y, y_pred_proba_original)
+            original_auprc = average_precision_score(y, y_pred_proba_original)
 
-            # Hyperparameter tuning if applicable
-            if name in param_grids:
-                grid_search = GridSearchCV(model, param_grids[name], cv=cv, scoring='roc_auc', n_jobs=-1)
-                grid_search.fit(X, y)
-                model = grid_search.best_estimator_
-
-                # Recalculate metrics after tuning
-                y_pred_proba = cross_val_predict(model, X, y, cv=cv, method='predict_proba', n_jobs=-1)[:, 1]
-                auc = roc_auc_score(y, y_pred_proba)
-                auprc = average_precision_score(y, y_pred_proba)
+            # Calculate ROC and Precision-Recall curves for the original model
+            fpr, tpr, _ = roc_curve(y, y_pred_proba_original)
+            precision, recall, _ = precision_recall_curve(y, y_pred_proba_original)
+            roc_curves[name] = (fpr, tpr)
+            pr_curves[name] = (precision, recall)
 
             # Optimize threshold for F1-score
             thresholds = np.arange(0, 1, 0.01)
             best_f1, best_threshold = max(
                 (f1_score(y, (y_pred_proba_original > t).astype(int)), t) for t in thresholds
             )
-            y_pred = (y_pred_proba > best_threshold).astype(int)
+            y_pred = (y_pred_proba_original > best_threshold).astype(int)
             accuracy = accuracy_score(y, y_pred)
             precision_at_threshold = precision_score(y, y_pred)
             recall_at_threshold = recall_score(y, y_pred)
 
+            # Hyperparameter tuning if applicable
+            if name in param_grids:
+                grid_search = GridSearchCV(model, param_grids[name], cv=cv, scoring='roc_auc', n_jobs=-1)
+                grid_search.fit(X, y)
+                tuned_model = grid_search.best_estimator_
+
+                # Recalculate metrics after tuning
+                y_pred_proba_tuned = cross_val_predict(tuned_model, X, y, cv=cv, method='predict_proba', n_jobs=-1)[:, 1]
+                tuned_auc = roc_auc_score(y, y_pred_proba_tuned)
+                tuned_auprc = average_precision_score(y, y_pred_proba_tuned)
+
+                # Choose the better model
+                if tuned_auc > original_auc:
+                    model = tuned_model
+                    original_auc = tuned_auc
+                    original_auprc = tuned_auprc
+
+                    # Update ROC and PR curves
+                    fpr, tpr, _ = roc_curve(y, y_pred_proba_tuned)
+                    precision, recall, _ = precision_recall_curve(y, y_pred_proba_tuned)
+                    roc_curves[name] = (fpr, tpr)
+                    pr_curves[name] = (precision, recall)
+
             # Store metrics
             metrics.append({
                 'Model': name,
-                'AUPRC': auprc,
-                'AUROC': auc,
+                'AUPRC': original_auprc,
+                'AUROC': original_auc,
                 'Precision': precision_at_threshold,
                 'Recall': recall_at_threshold,
                 'F1-Score': best_f1,
@@ -143,7 +154,6 @@ def benchmark_models(input_file, output_dir):
 
     except Exception as e:
         return f"Error: {str(e)}"
-
 
 if __name__ == "__main__":
     import sys

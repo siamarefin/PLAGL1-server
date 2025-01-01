@@ -567,7 +567,7 @@ async def visualize_dimensions(user_info: dict = Depends(verify_token)):
         # Define input and output paths
         user_id = str(user_info['user_id'])
         input_file = os.path.join(
-        "code", user_id, "files", f"{global_model_name}_top10_features_data.csv"
+        "code", user_id, "files", f"top10_features_data.csv"
         )
         output_dir = os.path.join("code", user_id, "files")
 
@@ -579,7 +579,7 @@ async def visualize_dimensions(user_info: dict = Depends(verify_token)):
             }
 
         # Run the Python script
-        command = ["python", "code/visualize_dimensionality_reduction.py"]
+        command = ["python", "code/visualize_dimensions_10_feature.py",input_file,output_dir]
         result = subprocess.run(
             command,
             stdout=subprocess.PIPE,
@@ -620,7 +620,7 @@ async def evaluate_features(
     try:
         # Define file paths
         user_id = str(user_info['user_id'])
-        input_file = os.path.join("code", user_id, "files", f"{global_model_name}_top10_features_data.csv")
+        input_file = os.path.join("code", user_id, "files", f"top10_features_data.csv")
         output_dir = os.path.join("code", user_id, "files")
 
         # Validate inputs

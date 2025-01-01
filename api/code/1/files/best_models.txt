@@ -1,11 +1,11 @@
 Extra Trees
-SVM
 Random Forest
+SVM
 AdaBoost
-K Neighbors
-Gradient Boosting
 Logistic Regression
+K Neighbors
 XGBoost
+Gradient Boosting
 LDA
 QDA
 Naive Bayes

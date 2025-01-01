@@ -1,6 +1,5 @@
 import pandas as pd
 import matplotlib.pyplot as plt
-import os
 from sklearn.ensemble import (
     RandomForestClassifier, ExtraTreesClassifier, GradientBoostingClassifier, AdaBoostClassifier
 )
@@ -10,6 +9,7 @@ from sklearn.discriminant_analysis import LinearDiscriminantAnalysis, QuadraticD
 from sklearn.naive_bayes import GaussianNB
 from sklearn.neighbors import KNeighborsClassifier
 from xgboost import XGBClassifier
+import os
 
 # Define classifiers
 classifiers = {
@@ -26,38 +26,31 @@ classifiers = {
     'AdaBoost': AdaBoostClassifier(algorithm='SAMME', random_state=123)
 }
 
-# Define parameter grids (use default values from grids)
-default_params = {
-    'Logistic Regression': {'C': 1.0, 'solver': 'liblinear'},
-    'Extra Trees': {'n_estimators': 100, 'max_depth': None, 'min_samples_split': 2},
-    'Random Forest': {'n_estimators': 100, 'max_depth': None, 'min_samples_split': 2},
-    'XGBoost': {'n_estimators': 100, 'learning_rate': 0.1, 'max_depth': 3},
-    'Gradient Boosting': {'n_estimators': 100, 'learning_rate': 0.1, 'max_depth': 3},
-    'K Neighbors': {'n_neighbors': 5, 'weights': 'uniform'},
-    'AdaBoost': {'n_estimators': 50, 'learning_rate': 1.0}
-}
-
-
 def get_model_and_importance_with_top10(model_name, input_file, output_dir):
     try:
-        # Load selected features
-        reduced_df = pd.read_csv(input_file)
+        # Sanitize model_name to avoid issues with spaces in file paths
+        sanitized_model_name = model_name.replace(" ", "_")
+
+        # Load data
+        df = pd.read_csv(input_file)
+
+        # Ensure the output directory exists
+        os.makedirs(output_dir, exist_ok=True)
+
+        # Prepare features and target
+        X = df.drop(columns=['condition'])
+        y = df['condition']
 
         # Ensure the selected model exists
         if model_name not in classifiers:
-            raise ValueError(f"Model '{model_name}' not found in classifiers.")
+            return {
+                "message": f"Model '{model_name}' not found in classifiers.",
+                "error": "Invalid model selection"
+            }
 
-        # Retrieve the selected model and apply default parameters
         model = classifiers[model_name]
-        if model_name in default_params:
-            model.set_params(**default_params[model_name])
-
-        # Handle feature names
-        feature_names = reduced_df.drop(columns=['condition']).columns.tolist()
 
         # Train the model
-        X = reduced_df.drop(columns=['condition'])
-        y = reduced_df['condition']
         model.fit(X, y)
 
         # Compute feature importance
@@ -65,7 +58,7 @@ def get_model_and_importance_with_top10(model_name, input_file, output_dir):
             # Tree-based models
             importance_scores = model.feature_importances_
             importance_df = pd.DataFrame({
-                'Feature': feature_names,
+                'Feature': X.columns,
                 'Importance': importance_scores
             }).sort_values(by='Importance', ascending=False)
 
@@ -73,12 +66,15 @@ def get_model_and_importance_with_top10(model_name, input_file, output_dir):
             # Linear models
             coef_scores = model.coef_.flatten()
             importance_df = pd.DataFrame({
-                'Feature': feature_names,
+                'Feature': X.columns,
                 'Importance': coef_scores
             }).sort_values(by='Importance', ascending=False)
 
         else:
-            raise ValueError(f"Model '{model_name}' does not support feature importance computation.")
+            return {
+                "message": f"Model '{model_name}' does not support feature importance computation.",
+                "error": "Feature importance not available"
+            }
 
         # Select top 10 features
         top10_features = importance_df.head(10)
@@ -106,12 +102,13 @@ def get_model_and_importance_with_top10(model_name, input_file, output_dir):
         # Save top 10 features DataFrame to a CSV file
         top10_csv_path = os.path.join(output_dir, f"{model_name}_top10_features.csv")
         top10_features.to_csv(top10_csv_path, index=False)
-        # Extract the top 10 features from the reduced DataFrame
+
+        # Extract the top 10 features from the DataFrame
         top10_feature_names = top10_features['Feature'].tolist()
 
         # Include the 'condition' column along with the top 10 features
         columns_to_include = top10_feature_names + ['condition']
-        top10_df = reduced_df[columns_to_include]
+        top10_df = df[columns_to_include]
 
         # Save the extracted top 10 features to a CSV file
         top10_features_csv_path = os.path.join(output_dir, f"{model_name}_top10_features_data.csv")
@@ -122,11 +119,10 @@ def get_model_and_importance_with_top10(model_name, input_file, output_dir):
             "files": {
                 "top10_features_txt": top10_txt_path,
                 "top10_features_plot": plot_path,
-                "top10_features_csv": top10_csv_path
+                "top10_features_csv": top10_csv_path,
+                "top10_features_data_csv": top10_features_csv_path
             }
         }
-    
-        
 
     except Exception as e:
         return {"message": "Error during feature importance computation.", "error": str(e)}
