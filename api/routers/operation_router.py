@@ -659,41 +659,6 @@ async def evaluate_features(
 
 
 
-@router.post('/plot-feature-performance')
-async def plot_feature_performance_api(user_info: dict = Depends(verify_token)):
-    """
-    API to generate and return feature performance plots.
-    """
-    try:
-        # Define file paths
-        user_id = str(user_info['user_id'])
-        input_file = os.path.join("code", user_id, "files", f"{global_model_name}_feature_metrics_ranking.csv")
-        output_dir = os.path.join("code", user_id, "files")
-
-        # Verify input file exists
-        if not os.path.exists(input_file):
-            raise HTTPException(status_code=400, detail=f"Input file not found at {input_file}")
-
-        # Run the Python script
-        command = ["python", "code/plot_feature_metrics.py", input_file, output_dir,global_model_name]
-        result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-
-        # Capture stdout and stderr
-        stdout = result.stdout.strip()
-        stderr = result.stderr.strip()
-
-        if result.returncode != 0:
-            raise HTTPException(status_code=400, detail=f"Error: {stderr}")
-
-        # Parse the script output
-        response = eval(stdout)  # Parse the dictionary output from the script
-        return response
-
-    except Exception as e:
-        return {"message": "An unexpected error occurred.", "error": str(e)}
-
-
-
 
 @router.post('/evaluate-top-features')
 async def evaluate_top_features_api(

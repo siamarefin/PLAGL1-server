@@ -39,10 +39,57 @@ param_grids = {
     'AdaBoost': {'n_estimators': [50, 100, 200], 'learning_rate': [0.01, 0.1, 1.0]}
 }
 
+
+def plot_performance_metrics(roc_curves, pr_curves, output_dir):
+    try:
+        # Sort ROC and Precision-Recall curves by AUC in descending order
+        roc_curves.sort(key=lambda x: x[2], reverse=True)
+        pr_curves.sort(key=lambda x: x[2], reverse=True)
+
+        # Create a figure with 2 subplots in landscape orientation
+        fig, axes = plt.subplots(1, 2, figsize=(16, 6))
+
+        # --- Precision-Recall Curves (AUPRC) ---
+        for precision, recall, pr_auc, n_features in pr_curves:
+            axes[0].plot(recall, precision, lw=1.75, label=f'{n_features} Genes Model (AUPRC = {pr_auc:.2f})')
+        axes[0].set_title('Precision-Recall Curves with Varying Number of Features')
+        axes[0].set_xlabel('Recall')
+        axes[0].set_ylabel('Precision')
+        axes[0].legend(loc='lower left', fontsize=9, frameon=False)
+
+        # --- ROC Curves (AUROC) ---
+        for fpr, tpr, roc_auc, n_features in roc_curves:
+            axes[1].plot(fpr, tpr, lw=1.75, label=f'{n_features} Genes Model (AUROC = {roc_auc:.2f})')
+        axes[1].plot([0, 1], [0, 1], 'k--', label='Random Chance')  # Add random chance line
+        axes[1].set_title('ROC Curves with Varying Number of Features')
+        axes[1].set_xlabel('False Positive Rate')
+        axes[1].set_ylabel('True Positive Rate')
+        axes[1].legend(loc='lower right', fontsize=9, frameon=False)
+
+        # Add a main title for the combined figure
+        fig.suptitle('Performance Metrics with Varying Number of Features', fontsize=16, y=1)
+
+        # Adjust layout for landscape view
+        plt.tight_layout(rect=[0, 0, 1, 0.95])
+
+        # Save the combined figure
+        png_path = os.path.join(output_dir, "performance_metrics_landscape.png")
+        pdf_path = os.path.join(output_dir, "performance_metrics_landscape.pdf")
+        plt.savefig(png_path, dpi=300, bbox_inches="tight")
+        plt.savefig(pdf_path, dpi=300, bbox_inches="tight")
+        plt.close()
+
+        print("Plots saved to:", png_path, "and", pdf_path)
+
+    except Exception as e:
+        print("Error generating plot:", str(e))
+
+
+        
 def evaluate_top_features(input_file, output_dir, model_name):
     try:
         # Ensure output directory exists
-        os.makedirs(output_dir, exist_ok=True)  
+        os.makedirs(output_dir, exist_ok=True)
 
         # Load data
         top10_df = pd.read_csv(input_file)
@@ -114,66 +161,20 @@ def evaluate_top_features(input_file, output_dir, model_name):
         metrics_csv_path = os.path.join(output_dir, f"{model_name}_feature_performance_metrics.csv")
         metrics_df.to_csv(metrics_csv_path, index=False)
 
-        # --- Generate and Save the Performance Metrics Plot ---
-        plt.figure(figsize=(12, 6))
+        print("Performance metrics saved to:", metrics_csv_path)
 
-        # Plot each metric over the number of features
-        plt.plot(metrics_df['Number of Features'], metrics_df['Accuracy'], label='Accuracy', marker='o', color='blue')
-        plt.plot(metrics_df['Number of Features'], metrics_df['AUROC'], label='AUROC', marker='o', color='green')
-        plt.plot(metrics_df['Number of Features'], metrics_df['AUPRC'], label='AUPRC', marker='o', color='orange')
-
-        # Invert x-axis for descending number of features
-        plt.gca().invert_xaxis()
-
-        # Add labels, title, legend, and grid
-        plt.title(f"Performance Metrics by Number of Features ({model_name})")
-        plt.xlabel("Number of Features")
-        plt.ylabel("Score")
-        plt.legend(loc="best")
-        plt.grid()
-
-        # Save the updated performance metrics plot
-        plot_path = os.path.join(output_dir, f"{model_name}_feature_performance_plot.png")
-        plt.savefig(plot_path, dpi=300, bbox_inches="tight")
-        plt.close()
-
-        print("Updated performance metrics plot saved to:", plot_path)
-
-        # --- Additional Code for Selecting Best Features by AUPRC ---
-        if not pr_curves:
-            raise ValueError("pr_curves is empty. Ensure the Precision-Recall curves are computed before selecting features.")
-
-        # Select the top model based on AUPRC
-        best_pr_curve = max(pr_curves, key=lambda x: x[2])  # Get the curve with the highest AUPRC
-        best_pr_n_features = best_pr_curve[3]  # Number of features for the best AUPRC
-
-        print(f"Best model based on AUPRC uses {best_pr_n_features} features.")
-
-        # Ensure selected_features contains valid feature names
-        selected_features = list(top10_df_array[:best_pr_n_features])
-        missing_features = [feature for feature in selected_features if feature not in top10_df.columns]
-
-        if missing_features:
-            raise ValueError(f"The following features are missing in top10_df: {missing_features}")
-
-        # Create the final DataFrame with selected features and 'condition'
-        final_df = top10_df[selected_features + ['condition']]
-
-        # Save the final DataFrame
-        final_df_path = os.path.join(output_dir, 'final_selected_features_auprc.csv')
-        final_df.to_csv(final_df_path, index=False)
-
-        print("Final selected features saved to:", final_df_path)
+        # Plot performance metrics
+        plot_performance_metrics(roc_curves, pr_curves, output_dir)
 
         return {
             "message": "Feature evaluation completed successfully.",
             "metrics_file": metrics_csv_path,
-            "plot_file": plot_path,
-            "final_selected_features": final_df_path
         }
 
     except Exception as e:
         return {"message": "Error during feature evaluation.", "error": str(e)}
+
+
 
 if __name__ == "__main__":
     import sys

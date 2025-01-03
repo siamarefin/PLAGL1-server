@@ -44,6 +44,55 @@ param_grids = {
     'AdaBoost': {'n_estimators': [50, 100, 200], 'learning_rate': [0.01, 0.1, 1.0]}
 }
 
+def plot_feature_performance(metrics_df, predictions, y, output_dir, model_name):
+    try:
+        # Create a figure with 2 subplots in landscape orientation
+        fig, axes = plt.subplots(1, 2, figsize=(15, 6))
+
+        # --- Precision-Recall Curves (AUPRC) ---
+        auprc_scores = {feature: metrics_df.loc[metrics_df['Feature'] == feature, 'AUPRC'].values[0] for feature in metrics_df['Feature']}
+        sorted_auprc_features = sorted(auprc_scores.items(), key=lambda x: x[1], reverse=True)
+
+        for feature, auprc in sorted_auprc_features:
+            y_pred_proba_cv = predictions[feature]
+            precision, recall, _ = precision_recall_curve(y, y_pred_proba_cv)
+            axes[0].plot(recall, precision, lw=1.75, label=f'{feature} (AUPRC = {auprc:.2f})')
+
+        axes[0].set_title('Precision-Recall Curves for Individual Features')
+        axes[0].set_xlabel('Recall')
+        axes[0].set_ylabel('Precision')
+        axes[0].legend(loc='lower left', fontsize=8, frameon=False)
+
+        # --- ROC Curves (AUROC) ---
+        roc_auc_scores = {feature: metrics_df.loc[metrics_df['Feature'] == feature, 'AUROC'].values[0] for feature in metrics_df['Feature']}
+        sorted_features = sorted(roc_auc_scores.items(), key=lambda x: x[1], reverse=True)
+
+        for feature, auc_score in sorted_features:
+            fpr, tpr, _ = roc_curve(y, predictions[feature])
+            axes[1].plot(fpr, tpr, lw=1.75, label=f'{feature} (AUROC = {auc_score:.2f})')
+
+        axes[1].plot([0, 1], [0, 1], 'k--', label='Random Chance')
+        axes[1].set_title('ROC Curves for Individual Features')
+        axes[1].set_xlabel('False Positive Rate')
+        axes[1].set_ylabel('True Positive Rate')
+        axes[1].legend(loc='lower right', fontsize=8, frameon=False)
+
+        fig.suptitle('Performance Metrics for Individual Features', fontsize=16, y=1)
+        plt.tight_layout(rect=[0, 0, 1, 0.95])
+
+        png_path = os.path.join(output_dir, f'{model_name}_feature_performance_landscape.png')
+        pdf_path = os.path.join(output_dir, f'{model_name}_feature_performance_landscape.pdf')
+        plt.savefig(png_path, dpi=300, bbox_inches='tight')
+        plt.savefig(pdf_path, dpi=300, bbox_inches='tight')
+        plt.close()
+
+        print("Plot saved to:", png_path, "and", pdf_path)
+
+    except Exception as e:
+        print("Error generating plot:", str(e))
+
+        
+
 def evaluate_single_feature_models(input_file, output_dir, model_name):
     try:
         global selected_model_name
@@ -73,7 +122,7 @@ def evaluate_single_feature_models(input_file, output_dir, model_name):
 
         # Store results for metrics
         metrics_scores = []
-
+        predictions = {}
         # Loop through top features for individual modeling and tuning
         for feature in X.columns:
             print(f"Processing feature: {feature}")
@@ -92,6 +141,8 @@ def evaluate_single_feature_models(input_file, output_dir, model_name):
             y_pred_proba = cross_val_predict(
                 best_model, X_single, y, cv=cv, method='predict_proba', n_jobs=-1
             )[:, 1]
+
+            predictions[feature] = y_pred_proba
 
             # Perform cross-validation to get predictions
             y_pred = cross_val_predict(best_model, X_single, y, cv=cv, method='predict', n_jobs=-1)
@@ -129,6 +180,8 @@ def evaluate_single_feature_models(input_file, output_dir, model_name):
         metrics_df.to_csv(metrics_csv_path, index=False)
 
         print("Feature metrics saved to:", metrics_csv_path)
+        # Plot feature performance
+        plot_feature_performance(metrics_df, predictions, y, output_dir, model_name)
 
         return {
             "message": "Feature evaluation completed successfully.",
@@ -137,6 +190,10 @@ def evaluate_single_feature_models(input_file, output_dir, model_name):
 
     except Exception as e:
         return {"message": "Error during feature evaluation.", "error": str(e)}
+
+
+
+
 
 if __name__ == "__main__":
     import sys
