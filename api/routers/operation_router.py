@@ -711,50 +711,54 @@ async def evaluate_top_features_api(
 
 
 
-@router.post('/evaluate-model-performance')
-async def evaluate_model_performance_api(
-    user_info: dict = Depends(verify_token),
-):
+@router.get('/evaluate-model-performance')
+async def visualize_dimensions(user_info: dict = Depends(verify_token)):
     """
-    API to evaluate model performance with final selected features.
+    API endpoint to visualize dimensionality reduction using PCA, t-SNE, and UMAP.
     """
     try:
-        # Define file paths
+        # Define input and output paths
         user_id = str(user_info['user_id'])
-        input_file = os.path.join("code", user_id, "files", "final_selected_features_auprc.csv")
+        input_file = os.path.join(
+            "code", user_id, "files", f"{global_model_name}_best_features.csv"
+        )
         output_dir = os.path.join("code", user_id, "files")
 
         # Verify input file exists
         if not os.path.exists(input_file):
-            raise HTTPException(status_code=404, detail=f"Input file not found: {input_file}")
+            return {
+                "message": "Input file not found.",
+                "error": f"File not found at {input_file}"
+            }
 
         # Run the Python script
-        command = ["python", "code/evaluate_model_performance.py", input_file, output_dir, global_model_name]
-        result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        command = ["python", "code/evaluate-model-performance.py", input_file, output_dir,global_model_name]
+        result = subprocess.run(
+            command,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True
+        )
 
-        # Capture stdout and stderr
-        stdout = result.stdout.strip()
-        stderr = result.stderr.strip()
+        # Capture output and error
+        output = result.stdout.strip()
+        error = result.stderr.strip()
 
         if result.returncode != 0:
-            raise HTTPException(status_code=400, detail=f"Error: {stderr}")
+            return {
+                "message": "Error running the visualization script.",
+                "error": error
+            }
 
-        # Parse the script's output
-        try:
-            response = json.loads(stdout)
-        except json.JSONDecodeError:
-            response = {"message": "Script completed successfully.", "output": stdout}
-
+        # Parse the script's JSON output
+        response = eval(output)  # Convert the script's output to a Python dictionary
         return response
 
     except Exception as e:
-        return {"message": "An unexpected error occurred.", "error": str(e)}
-
-
-
-
-
-
+        return {
+            "message": "An unexpected error occurred.",
+            "error": str(e)
+        }
 
 
 

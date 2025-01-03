@@ -55,6 +55,8 @@ def plot_performance_metrics(roc_curves, pr_curves, output_dir):
         axes[0].set_title('Precision-Recall Curves with Varying Number of Features')
         axes[0].set_xlabel('Recall')
         axes[0].set_ylabel('Precision')
+        axes[0].set_xlim([0.0, 1.0])
+        axes[0].set_ylim([0.0, 1.05])
         axes[0].legend(loc='lower left', fontsize=9, frameon=False)
 
         # --- ROC Curves (AUROC) ---
@@ -64,17 +66,19 @@ def plot_performance_metrics(roc_curves, pr_curves, output_dir):
         axes[1].set_title('ROC Curves with Varying Number of Features')
         axes[1].set_xlabel('False Positive Rate')
         axes[1].set_ylabel('True Positive Rate')
+        axes[1].set_xlim([0.0, 1.0])
+        axes[1].set_ylim([0.0, 1.05])
         axes[1].legend(loc='lower right', fontsize=9, frameon=False)
 
         # Add a main title for the combined figure
-        fig.suptitle('Performance Metrics with Varying Number of Features', fontsize=16, y=1)
+        fig.suptitle('Performance Metrics with Varying Number of Features', fontsize=16, y=1.02)
 
         # Adjust layout for landscape view
         plt.tight_layout(rect=[0, 0, 1, 0.95])
 
         # Save the combined figure
-        png_path = os.path.join(output_dir, "performance_metrics_landscape.png")
-        pdf_path = os.path.join(output_dir, "performance_metrics_landscape.pdf")
+        png_path = os.path.join(output_dir, "performance_metrics_landscape_top.png")
+        pdf_path = os.path.join(output_dir, "performance_metrics_landscape_top.pdf")
         plt.savefig(png_path, dpi=300, bbox_inches="tight")
         plt.savefig(pdf_path, dpi=300, bbox_inches="tight")
         plt.close()
@@ -83,9 +87,11 @@ def plot_performance_metrics(roc_curves, pr_curves, output_dir):
 
     except Exception as e:
         print("Error generating plot:", str(e))
+    except Exception as e:
+        print("Error generating plot:", str(e))
 
 
-        
+
 def evaluate_top_features(input_file, output_dir, model_name):
     try:
         # Ensure output directory exists
@@ -163,6 +169,21 @@ def evaluate_top_features(input_file, output_dir, model_name):
 
         print("Performance metrics saved to:", metrics_csv_path)
 
+        # Identify the best-performing model based on a selected metric (e.g., Accuracy or AUPRC)
+        best_row = metrics_df.loc[metrics_df['Accuracy'].idxmax()]
+        best_n_features = int(best_row['Number of Features'])
+
+        # Select top features for the best model
+        best_features = list(top10_df_array[:best_n_features])
+        final_df = top10_df[best_features + ['condition']]
+
+        # Save the final selected features to a CSV file
+        final_features_csv_path = os.path.join(output_dir, f"{model_name}_best_features.csv")
+        final_df.to_csv(final_features_csv_path, index=False)
+
+        print(f"Best model with {best_n_features} features saved to: {final_features_csv_path}")
+
+        
         # Plot performance metrics
         plot_performance_metrics(roc_curves, pr_curves, output_dir)
 
