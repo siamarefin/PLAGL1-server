@@ -262,7 +262,7 @@ async def visualize_dimensions(user_info: dict = Depends(verify_token)):
     """
     try:
         # Define input and output paths
-        user_id = str(user_info['user_id'])
+        user_id = str(user_info['user_id']) 
         input_file = os.path.join(
             "code", user_id, "files", "z_score_normalized_data.csv"
         )
