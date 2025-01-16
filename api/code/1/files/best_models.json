@@ -1,13 +1,209 @@
 {
-    "Logistic Regression": "LogisticRegression(max_iter=1000, random_state=123)",
-    "Extra Trees": "ExtraTreesClassifier(max_depth=10, min_samples_split=5, n_estimators=50,\n                     random_state=123)",
-    "Random Forest": "RandomForestClassifier(random_state=123)",
-    "XGBoost": "XGBClassifier(base_score=None, booster=None, callbacks=None,\n              colsample_bylevel=None, colsample_bynode=None,\n              colsample_bytree=None, device=None, early_stopping_rounds=None,\n              enable_categorical=False, eval_metric='logloss',\n              feature_types=None, gamma=None, grow_policy=None,\n              importance_type=None, interaction_constraints=None,\n              learning_rate=0.2, max_bin=None, max_cat_threshold=None,\n              max_cat_to_onehot=None, max_delta_step=None, max_depth=5,\n              max_leaves=None, min_child_weight=None, missing=nan,\n              monotone_constraints=None, multi_strategy=None, n_estimators=200,\n              n_jobs=None, num_parallel_tree=None, random_state=123, ...)",
-    "Gradient Boosting": "GradientBoostingClassifier(random_state=123)",
-    "SVM": "SVC(probability=True, random_state=123)",
-    "LDA": "LinearDiscriminantAnalysis()",
-    "QDA": "QuadraticDiscriminantAnalysis()",
-    "Naive Bayes": "GaussianNB()",
-    "K Neighbors": "KNeighborsClassifier(n_neighbors=7, weights='distance')",
-    "AdaBoost": "AdaBoostClassifier(algorithm='SAMME', n_estimators=200, random_state=123)"
+    "Logistic Regression": {
+        "model_name": "LogisticRegression",
+        "parameters": {
+            "C": 1.0,
+            "class_weight": null,
+            "dual": false,
+            "fit_intercept": true,
+            "intercept_scaling": 1,
+            "l1_ratio": null,
+            "max_iter": 1000,
+            "multi_class": "auto",
+            "n_jobs": null,
+            "penalty": "l2",
+            "random_state": 123,
+            "solver": "lbfgs",
+            "tol": 0.0001,
+            "verbose": 0,
+            "warm_start": false
+        }
+    },
+    "Extra Trees": {
+        "model_name": "ExtraTreesClassifier",
+        "parameters": {
+            "bootstrap": false,
+            "ccp_alpha": 0.0,
+            "class_weight": null,
+            "criterion": "gini",
+            "max_depth": 10,
+            "max_features": "sqrt",
+            "max_leaf_nodes": null,
+            "max_samples": null,
+            "min_impurity_decrease": 0.0,
+            "min_samples_leaf": 1,
+            "min_samples_split": 5,
+            "min_weight_fraction_leaf": 0.0,
+            "n_estimators": 50,
+            "n_jobs": null,
+            "oob_score": false,
+            "random_state": 123,
+            "verbose": 0,
+            "warm_start": false
+        }
+    },
+    "Random Forest": {
+        "model_name": "RandomForestClassifier",
+        "parameters": {
+            "bootstrap": true,
+            "ccp_alpha": 0.0,
+            "class_weight": null,
+            "criterion": "gini",
+            "max_depth": null,
+            "max_features": "sqrt",
+            "max_leaf_nodes": null,
+            "max_samples": null,
+            "min_impurity_decrease": 0.0,
+            "min_samples_leaf": 1,
+            "min_samples_split": 2,
+            "min_weight_fraction_leaf": 0.0,
+            "n_estimators": 100,
+            "n_jobs": null,
+            "oob_score": false,
+            "random_state": 123,
+            "verbose": 0,
+            "warm_start": false
+        }
+    },
+    "XGBoost": {
+        "model_name": "XGBClassifier",
+        "parameters": {
+            "objective": "binary:logistic",
+            "base_score": null,
+            "booster": null,
+            "callbacks": null,
+            "colsample_bylevel": null,
+            "colsample_bynode": null,
+            "colsample_bytree": null,
+            "device": null,
+            "early_stopping_rounds": null,
+            "enable_categorical": false,
+            "eval_metric": "logloss",
+            "feature_types": null,
+            "gamma": null,
+            "grow_policy": null,
+            "importance_type": null,
+            "interaction_constraints": null,
+            "learning_rate": 0.2,
+            "max_bin": null,
+            "max_cat_threshold": null,
+            "max_cat_to_onehot": null,
+            "max_delta_step": null,
+            "max_depth": 5,
+            "max_leaves": null,
+            "min_child_weight": null,
+            "missing": NaN,
+            "monotone_constraints": null,
+            "multi_strategy": null,
+            "n_estimators": 200,
+            "n_jobs": null,
+            "num_parallel_tree": null,
+            "random_state": 123,
+            "reg_alpha": null,
+            "reg_lambda": null,
+            "sampling_method": null,
+            "scale_pos_weight": null,
+            "subsample": null,
+            "tree_method": null,
+            "validate_parameters": null,
+            "verbosity": null
+        }
+    },
+    "Gradient Boosting": {
+        "model_name": "GradientBoostingClassifier",
+        "parameters": {
+            "ccp_alpha": 0.0,
+            "criterion": "friedman_mse",
+            "init": null,
+            "learning_rate": 0.1,
+            "loss": "log_loss",
+            "max_depth": 3,
+            "max_features": null,
+            "max_leaf_nodes": null,
+            "min_impurity_decrease": 0.0,
+            "min_samples_leaf": 1,
+            "min_samples_split": 2,
+            "min_weight_fraction_leaf": 0.0,
+            "n_estimators": 100,
+            "n_iter_no_change": null,
+            "random_state": 123,
+            "subsample": 1.0,
+            "tol": 0.0001,
+            "validation_fraction": 0.1,
+            "verbose": 0,
+            "warm_start": false
+        }
+    },
+    "SVM": {
+        "model_name": "SVC",
+        "parameters": {
+            "C": 1.0,
+            "break_ties": false,
+            "cache_size": 200,
+            "class_weight": null,
+            "coef0": 0.0,
+            "decision_function_shape": "ovr",
+            "degree": 3,
+            "gamma": "scale",
+            "kernel": "rbf",
+            "max_iter": -1,
+            "probability": true,
+            "random_state": 123,
+            "shrinking": true,
+            "tol": 0.001,
+            "verbose": false
+        }
+    },
+    "LDA": {
+        "model_name": "LinearDiscriminantAnalysis",
+        "parameters": {
+            "covariance_estimator": null,
+            "n_components": null,
+            "priors": null,
+            "shrinkage": null,
+            "solver": "svd",
+            "store_covariance": false,
+            "tol": 0.0001
+        }
+    },
+    "QDA": {
+        "model_name": "QuadraticDiscriminantAnalysis",
+        "parameters": {
+            "priors": null,
+            "reg_param": 0.0,
+            "store_covariance": false,
+            "tol": 0.0001
+        }
+    },
+    "Naive Bayes": {
+        "model_name": "GaussianNB",
+        "parameters": {
+            "priors": null,
+            "var_smoothing": 1e-09
+        }
+    },
+    "K Neighbors": {
+        "model_name": "KNeighborsClassifier",
+        "parameters": {
+            "algorithm": "auto",
+            "leaf_size": 30,
+            "metric": "minkowski",
+            "metric_params": null,
+            "n_jobs": null,
+            "n_neighbors": 7,
+            "p": 2,
+            "weights": "distance"
+        }
+    },
+    "AdaBoost": {
+        "model_name": "AdaBoostClassifier",
+        "parameters": {
+            "algorithm": "SAMME",
+            "base_estimator": "deprecated",
+            "estimator": null,
+            "learning_rate": 1.0,
+            "n_estimators": 200,
+            "random_state": 123
+        }
+    }
 }

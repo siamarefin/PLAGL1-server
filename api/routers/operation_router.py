@@ -495,13 +495,37 @@ async def top10_features(model_name: str = Form(...), user_info: dict = Depends(
         user_id = str(user_info['user_id'])
         input_file = os.path.join("code", user_id, "files", "selected_features.csv")
         output_dir = os.path.join("code", user_id, "files")
+        best_models_file = os.path.join(output_dir, "best_models.json")
 
         # Verify input file exists
         if not os.path.exists(input_file):
             raise HTTPException(status_code=400, detail=f"Input file not found at {input_file}")
 
+        # Verify best_models.json exists
+        if not os.path.exists(best_models_file):
+            raise HTTPException(status_code=400, detail=f"Best models file not found at {best_models_file}")
+
+        # Load the best_models.json file
+        with open(best_models_file, "r") as json_file:
+            best_models = json.load(json_file)
+
+        # Verify the selected model exists in best_models
+        if model_name not in best_models:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Model '{model_name}' not found in best_models.json. Available models: {list(best_models.keys())}"
+            )
+
+        # Pass the selected model's parameters to the script
+        model_params = json.dumps(best_models[model_name])  # Serialize model parameters to JSON
+
         # Run the Python script
-        command = ["python", "code\extract_top10_features.py", model_name, input_file, output_dir]
+        command = [
+            "python", "code/extract_top10_features.py",
+            model_name, input_file, output_dir, json.dumps(model_params)
+        ]
+
+
         result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
 
         # Capture stdout and stderr

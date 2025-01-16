@@ -15,7 +15,7 @@ from sklearn.neighbors import KNeighborsClassifier
 from xgboost import XGBClassifier
 import os
 import numpy as np
-
+import json
 import matplotlib.pyplot as plt
 from sklearn.metrics import roc_curve, precision_recall_curve, roc_auc_score, average_precision_score
 
@@ -79,8 +79,6 @@ def benchmark_models(input_file, output_dir):
 
         os.makedirs(output_dir, exist_ok=True)
 
-       
-
         # Initialize Stratified Cross-Validation
         cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=123)
 
@@ -100,22 +98,6 @@ def benchmark_models(input_file, output_dir):
             original_auc = roc_auc_score(y, y_pred_proba_original)
             original_auprc = average_precision_score(y, y_pred_proba_original)
 
-            # Calculate ROC and Precision-Recall curves for the original model
-            fpr, tpr, _ = roc_curve(y, y_pred_proba_original)
-            precision, recall, _ = precision_recall_curve(y, y_pred_proba_original)
-            roc_curves[name] = (fpr, tpr)
-            pr_curves[name] = (precision, recall)
-
-            # Optimize threshold for F1-score
-            thresholds = np.arange(0, 1, 0.01)
-            best_f1, best_threshold = max(
-                (f1_score(y, (y_pred_proba_original > t).astype(int)), t) for t in thresholds
-            )
-            y_pred = (y_pred_proba_original > best_threshold).astype(int)
-            accuracy = accuracy_score(y, y_pred)
-            precision_at_threshold = precision_score(y, y_pred)
-            recall_at_threshold = recall_score(y, y_pred)
-
             # Evaluate tuned model if hyperparameter grid exists
             if name in param_grids:
                 grid_search = GridSearchCV(
@@ -134,38 +116,23 @@ def benchmark_models(input_file, output_dir):
                 # Choose the better model
                 if tuned_auc > original_auc:
                     best_model = tuned_model
-                    best_auc = tuned_auc
-                    best_auprc = tuned_auprc
-                    fpr, tpr, _ = roc_curve(y, y_pred_proba_tuned)
-                    precision, recall, _ = precision_recall_curve(y, y_pred_proba_tuned)
-                    roc_curves[name] = (fpr, tpr)
-                    pr_curves[name] = (precision, recall)
-                    print(f"{name}: Tuned model performed better (AUROC: {tuned_auc:.4f}, AUPRC: {tuned_auprc:.4f})")
                 else:
                     best_model = model
-                    best_auc = original_auc
-                    best_auprc = original_auprc
-                    print(f"{name}: Original model retained (AUROC: {original_auc:.4f}, AUPRC: {original_auprc:.4f})")
             else:
                 best_model = model
-                best_auc = original_auc
-                best_auprc = original_auprc
-                print(f"{name}: No hyperparameter tuning. Original model AUROC: {original_auc:.4f}, AUPRC: {original_auprc:.4f}")
 
-            # Store the best model and metrics
-            best_models[name] = best_model
+            # Save model parameters for JSON serialization
+            best_models[name] = {
+                "model_name": type(best_model).__name__,
+                "parameters": best_model.get_params()
+            }
 
             # Store metrics
             metrics.append({
                 'Model': name,
-                'AUPRC': best_auprc,
-                'AUROC': best_auc,
-                'Precision': precision_at_threshold,
-                'Recall': recall_at_threshold,
-                'F1-Score': best_f1,
-                'Accuracy': accuracy,
-            })  
-
+                'AUPRC': original_auprc,
+                'AUROC': original_auc,
+            })
 
         # Convert metrics to DataFrame
         metrics_df = pd.DataFrame(metrics)
@@ -175,14 +142,10 @@ def benchmark_models(input_file, output_dir):
         metrics_path = os.path.join(output_dir, "model_benchmarking_results.csv")
         metrics_df.to_csv(metrics_path, index=False)
 
-        # Determine the best model
-        best_model = metrics_df.iloc[0]['Model']
-        import json
-
-        # Save the best_models dictionary directly to a JSON file
+        # Save best_models in proper JSON format
         best_models_path = os.path.join(output_dir, "best_models.json")
         with open(best_models_path, "w") as json_file:
-            json.dump(best_models, json_file, default=str, indent=4)  # Use default=str to handle non-serializable objects
+            json.dump(best_models, json_file, indent=4)  # Save as a JSON file
 
         # Sort models by AUPRC
         sorted_models = sorted(best_models.items(), key=lambda x: metrics_df.loc[metrics_df['Model'] == x[0], 'AUPRC'].values[0], reverse=True)
@@ -244,7 +207,10 @@ def benchmark_models(input_file, output_dir):
         plt.show()
 
 
-        return f"{metrics_path}"
+        return {
+            "metrics_path": metrics_path,
+            "best_models_path": best_models_path
+        }
 
     except Exception as e:
         return f"Error: {str(e)}"
