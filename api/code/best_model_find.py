@@ -1,3 +1,5 @@
+
+
 import pandas as pd
 from sklearn.metrics import (
     roc_auc_score, average_precision_score, f1_score, accuracy_score,
@@ -13,6 +15,10 @@ from sklearn.neighbors import KNeighborsClassifier
 from xgboost import XGBClassifier
 import os
 import numpy as np
+
+import matplotlib.pyplot as plt
+from sklearn.metrics import roc_curve, precision_recall_curve, roc_auc_score, average_precision_score
+
 
 # Define classifiers and hyperparameter grids
 classifiers = {
@@ -73,19 +79,24 @@ def benchmark_models(input_file, output_dir):
 
         os.makedirs(output_dir, exist_ok=True)
 
-        # Stratified Cross-Validation
+       
+
+        # Initialize Stratified Cross-Validation
         cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=123)
 
+        # Initialize storage for models and metrics
+        best_models = {}
         metrics = []
         roc_curves = {}
         pr_curves = {}
 
-        # Benchmark each classifier
         for name, model in classifiers.items():
-            print(f"Evaluating {name}...")
+            print(f"Tuning {name}...")
 
-            # Cross-validation predictions for the original model
-            y_pred_proba_original = cross_val_predict(model, X, y, cv=cv, method='predict_proba', n_jobs=-1)[:, 1]
+            # Cross-validation predictions for original model
+            y_pred_proba_original = cross_val_predict(
+                model, X, y, cv=cv, method='predict_proba', n_jobs=-1
+            )[:, 1]
             original_auc = roc_auc_score(y, y_pred_proba_original)
             original_auprc = average_precision_score(y, y_pred_proba_original)
 
@@ -105,39 +116,56 @@ def benchmark_models(input_file, output_dir):
             precision_at_threshold = precision_score(y, y_pred)
             recall_at_threshold = recall_score(y, y_pred)
 
-            # Hyperparameter tuning if applicable
+            # Evaluate tuned model if hyperparameter grid exists
             if name in param_grids:
-                grid_search = GridSearchCV(model, param_grids[name], cv=cv, scoring='roc_auc', n_jobs=-1)
+                grid_search = GridSearchCV(
+                    model, param_grids[name], cv=cv, scoring='roc_auc', n_jobs=-1
+                )
                 grid_search.fit(X, y)
                 tuned_model = grid_search.best_estimator_
 
-                # Recalculate metrics after tuning
-                y_pred_proba_tuned = cross_val_predict(tuned_model, X, y, cv=cv, method='predict_proba', n_jobs=-1)[:, 1]
+                y_pred_proba_tuned = cross_val_predict(
+                    tuned_model, X, y, cv=cv, method='predict_proba', n_jobs=-1
+                )[:, 1]
+
                 tuned_auc = roc_auc_score(y, y_pred_proba_tuned)
                 tuned_auprc = average_precision_score(y, y_pred_proba_tuned)
 
                 # Choose the better model
                 if tuned_auc > original_auc:
-                    model = tuned_model
-                    original_auc = tuned_auc
-                    original_auprc = tuned_auprc
-
-                    # Update ROC and PR curves
+                    best_model = tuned_model
+                    best_auc = tuned_auc
+                    best_auprc = tuned_auprc
                     fpr, tpr, _ = roc_curve(y, y_pred_proba_tuned)
                     precision, recall, _ = precision_recall_curve(y, y_pred_proba_tuned)
                     roc_curves[name] = (fpr, tpr)
                     pr_curves[name] = (precision, recall)
+                    print(f"{name}: Tuned model performed better (AUROC: {tuned_auc:.4f}, AUPRC: {tuned_auprc:.4f})")
+                else:
+                    best_model = model
+                    best_auc = original_auc
+                    best_auprc = original_auprc
+                    print(f"{name}: Original model retained (AUROC: {original_auc:.4f}, AUPRC: {original_auprc:.4f})")
+            else:
+                best_model = model
+                best_auc = original_auc
+                best_auprc = original_auprc
+                print(f"{name}: No hyperparameter tuning. Original model AUROC: {original_auc:.4f}, AUPRC: {original_auprc:.4f}")
+
+            # Store the best model and metrics
+            best_models[name] = best_model
 
             # Store metrics
             metrics.append({
                 'Model': name,
-                'AUPRC': original_auprc,
-                'AUROC': original_auc,
+                'AUPRC': best_auprc,
+                'AUROC': best_auc,
                 'Precision': precision_at_threshold,
                 'Recall': recall_at_threshold,
                 'F1-Score': best_f1,
-                'Accuracy': accuracy
-            })
+                'Accuracy': accuracy,
+            })  
+
 
         # Convert metrics to DataFrame
         metrics_df = pd.DataFrame(metrics)
@@ -149,6 +177,72 @@ def benchmark_models(input_file, output_dir):
 
         # Determine the best model
         best_model = metrics_df.iloc[0]['Model']
+        import json
+
+        # Save the best_models dictionary directly to a JSON file
+        best_models_path = os.path.join(output_dir, "best_models.json")
+        with open(best_models_path, "w") as json_file:
+            json.dump(best_models, json_file, default=str, indent=4)  # Use default=str to handle non-serializable objects
+
+        # Sort models by AUPRC
+        sorted_models = sorted(best_models.items(), key=lambda x: metrics_df.loc[metrics_df['Model'] == x[0], 'AUPRC'].values[0], reverse=True)
+
+        # Create a figure with 2 subplots
+        fig, axes = plt.subplots(1, 2, figsize=(15, 6))
+
+        # --- AUPRC Curves ---
+        for name, model in sorted_models:
+            # Retrieve predictions
+            y_pred_proba_cv = cross_val_predict(model, X, y, cv=cv, method='predict_proba', n_jobs=-1)[:, 1]
+            precision, recall, _ = precision_recall_curve(y, y_pred_proba_cv)
+            auprc = average_precision_score(y, y_pred_proba_cv)
+
+            # Plot Precision-Recall curve
+            axes[0].plot(recall, precision, lw=1.75, label=f'{name} (AUPRC = {auprc:.2f})')
+
+        axes[0].set_title('AUPRC Curves')
+        axes[0].set_xlabel('Recall')
+        axes[0].set_ylabel('Precision')
+        axes[0].set_xlim([0, 1])
+        axes[0].set_ylim([0, 1.05])
+        axes[0].legend(loc='lower left', fontsize=9, frameon=False)
+
+
+        # --- AUROC Curves ---
+        for name, model in sorted_models:
+            # Retrieve predictions
+            y_pred_proba_cv = cross_val_predict(model, X, y, cv=cv, method='predict_proba', n_jobs=-1)[:, 1]
+            fpr, tpr, _ = roc_curve(y, y_pred_proba_cv)
+            auc = roc_auc_score(y, y_pred_proba_cv)
+
+            # Plot ROC curve
+            axes[1].plot(fpr, tpr, lw=1.75, label=f'{name} (AUROC = {auc:.2f})')
+
+        axes[1].plot([0, 1], [0, 1], 'k--', label='Random Chance')
+        axes[1].set_title('AUROC Curves')
+        axes[1].set_xlabel('False Positive Rate')
+        axes[1].set_ylabel('True Positive Rate')
+        axes[1].set_xlim([0, 1])
+        axes[1].set_ylim([0, 1.05])
+        axes[1].legend(loc='lower right', fontsize=9, frameon=False)
+
+
+        # Add a main title for the figure
+        fig.suptitle('Model Benchmarking: AUPRC and AUROC', fontsize=16, y=1)
+
+        # Adjust layout for landscape orientation
+        plt.tight_layout(rect=[0, 0, 1, 0.95])
+
+        # Save the figure
+         # Save the figure
+        png_path = os.path.join(output_dir, 'model_benchmarking_curves.png')
+        pdf_path = os.path.join(output_dir, 'model_benchmarking_curves.pdf')
+        fig.savefig(png_path, dpi=300, bbox_inches='tight')
+        fig.savefig(pdf_path, dpi=300, bbox_inches='tight')
+
+        # Show the combined figure
+        plt.show()
+
 
         return f"{metrics_path}"
 

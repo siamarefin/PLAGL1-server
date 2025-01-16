@@ -468,39 +468,6 @@ async def find_best_model_api(user_info: dict = Depends(verify_token)):
 
 
 
-@router.get('/visualize-results')
-async def visualize_results(user_info: dict = Depends(verify_token)):
-    """
-    API to visualize model benchmarking results and return file URLs.
-    """
-    try:
-        # Define file paths
-        user_id = str(user_info['user_id'])
-        input_file = os.path.join("code", user_id, "files", "selected_features.csv")
-        input_file1 = os.path.join("code", user_id, "files", "model_benchmarking_results.csv")
-        output_dir = os.path.join("code", user_id, "files")
-
-        # Verify input files exist
-        if not os.path.exists(input_file) or not os.path.exists(input_file1):
-            return {"message": "Input files not found.", "error": "Missing required files."}
-
-        # Run the Python script
-        command = ["python", "code/visualize_model_benchmarking.py", input_file, input_file1, output_dir]
-        result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-
-        # Parse output
-        stdout = result.stdout.strip()
-        stderr = result.stderr.strip()
-
-        if result.returncode != 0:
-            return {"message": "Error running the visualization script.", "error": stderr}
-
-        return json.loads(stdout)
-
-    except Exception as e:
-        return {"message": "An unexpected error occurred.", "error": str(e)}
-
-
 
 
 
