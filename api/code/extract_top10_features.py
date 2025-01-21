@@ -14,6 +14,53 @@ import sys
 import json
 
 
+def load_model_from_json(model_name, json_path):
+    """
+    Load model parameters from a JSON file and return an instantiated model.
+    """
+    # Map of model names to classes
+    model_mapping = {
+        "LogisticRegression": LogisticRegression,
+        "ExtraTreesClassifier": ExtraTreesClassifier,
+        "RandomForestClassifier": RandomForestClassifier,
+        "XGBClassifier": XGBClassifier,
+        "GradientBoostingClassifier": GradientBoostingClassifier,
+        "SVC": SVC,
+        "LinearDiscriminantAnalysis": LinearDiscriminantAnalysis,
+        "QuadraticDiscriminantAnalysis": QuadraticDiscriminantAnalysis,
+        "GaussianNB": GaussianNB,
+        "KNeighborsClassifier": KNeighborsClassifier,
+        "AdaBoostClassifier": AdaBoostClassifier,
+    }
+
+    try:
+        # Load the JSON file
+        with open(json_path, "r") as file:
+            best_models = json.load(file)
+
+        # Check if the model exists in the JSON
+        if model_name not in best_models:
+            raise ValueError(f"Model '{model_name}' not found in the JSON file.")
+
+        # Extract model parameters
+        model_info = best_models[model_name]
+        model_class_name = model_info["model_name"]
+        model_params = model_info["parameters"]
+
+        # Validate and instantiate the model
+        if model_class_name not in model_mapping:
+            raise ValueError(f"Model class '{model_class_name}' is not supported.")
+
+        model_class = model_mapping[model_class_name]
+        return model_class(**model_params)
+
+    except FileNotFoundError:
+        raise ValueError(f"JSON file '{json_path}' not found.")
+    except Exception as e:
+        raise ValueError(f"Error loading model from JSON: {str(e)}")
+
+
+
 def get_model_and_importance_with_top10(model_name, model_params, input_file, output_dir):
     try:
         # Validate model_params
@@ -35,17 +82,17 @@ def get_model_and_importance_with_top10(model_name, model_params, input_file, ou
 
         # Map of model names to classes
         model_mapping = {
-            "Logistic Regression": LogisticRegression,
-            "Extra Trees": ExtraTreesClassifier,
-            "Random Forest": RandomForestClassifier,
-            "XGBoost": XGBClassifier,
-            "Gradient Boosting": GradientBoostingClassifier,
-            "SVM": SVC,
-            "LDA": LinearDiscriminantAnalysis,
-            "QDA": QuadraticDiscriminantAnalysis,
-            "Naive Bayes": GaussianNB,
-            "K Neighbors": KNeighborsClassifier,
-            "AdaBoost": AdaBoostClassifier,
+            "LogisticRegression": LogisticRegression,
+            "ExtraTreesClassifier": ExtraTreesClassifier,
+            "RandomForestClassifier": RandomForestClassifier,
+            "XGBClassifier": XGBClassifier,
+            "GradientBoostingClassifier": GradientBoostingClassifier,
+            "SVC": SVC,
+            "LinearDiscriminantAnalysis": LinearDiscriminantAnalysis,
+            "QuadraticDiscriminantAnalysis": QuadraticDiscriminantAnalysis,
+            "GaussianNB": GaussianNB,
+            "KNeighborsClassifier": KNeighborsClassifier,
+            "AdaBoostClassifier": AdaBoostClassifier,
         }
 
         # Validate and instantiate the model
@@ -126,17 +173,64 @@ def get_model_and_importance_with_top10(model_name, model_params, input_file, ou
         return {"message": "Error during feature importance computation.", "error": str(e)}
 
 
-if __name__ == "__main__":
-    try:
-        model_name = sys.argv[1]
-        input_file = sys.argv[2]
-        output_dir = sys.argv[3]
-        model_params = json.loads(sys.argv[4])  # Parse JSON string to dictionary
-    except json.JSONDecodeError as e:
-        print(json.dumps({"message": "Error parsing model parameters.", "error": str(e)}, indent=4))
-        sys.exit(1)
+# if __name__ == "__main__":
+#     try:
+#         # Command-line arguments
+#         model_name_arg = sys.argv[1]
+#         input_file_arg = sys.argv[2]
+#         output_dir_arg = sys.argv[3]
+#         model_params  = sys.argv[4]
 
-    # Debugging: Print type and content of model_params
-    print(f"Type of model_params: {type(model_params)}")  # Should print <class 'dict'>
-    print(f"Contents of model_params: {model_params}")
+#         # print("json_input:", json_input)
 
+#         # # Check if the JSON input is a string or a file path
+#         # try:
+#         #     best_models = json.loads(json_input)  # Try to parse the JSON string directly
+#         #     print("best_models:",best_models)
+#         #     print("Parsed input as a JSON string.")
+#         # except json.JSONDecodeError:
+#         #     with open(json_input, "r") as file:  # Otherwise, treat it as a file path
+#         #         best_models = json.load(file)
+#         #     print("Loaded input from a JSON file.")
+
+#         # # Map user-friendly model names to their class names
+#         # name_mapping = {
+#         #     "Extra Trees": "ExtraTreesClassifier",
+#         #     "Random Forest": "RandomForestClassifier",
+#         #     "XGBoost": "XGBClassifier",
+#         #     "Gradient Boosting": "GradientBoostingClassifier",
+#         #     "Logistic Regression": "LogisticRegression",
+#         #     "SVM": "SVC",
+#         #     "LDA": "LinearDiscriminantAnalysis",
+#         #     "QDA": "QuadraticDiscriminantAnalysis",
+#         #     "Naive Bayes": "GaussianNB",
+#         #     "K Neighbors": "KNeighborsClassifier",
+#         #     "AdaBoost": "AdaBoostClassifier",
+#         # }
+
+#         # Resolve the model name
+#         # model_name_resolved = name_mapping.get(model_name_arg, model_name_arg)
+
+#         # print("model_name_resolved:",model_name_resolved)
+
+#         # print(" ")
+#         # print("best_models: ", best_models )
+
+#         # Load the model parameters from the JSON data
+#         # if model_name_resolved not in best_models.model_name:
+#         #     raise ValueError(f"Model '{model_name_arg}' not found in the JSON data.")
+
+#         # model_info = best_models[model_name_resolved]
+#         # model_name = model_info["model_name"]
+#         # model_params = model_info["parameters"]
+
+#         # # Debugging: Print the loaded model and parameters
+#         # print(f"Loaded model: {model_name}")
+#         # print(f"Model parameters: {model_params}")
+
+#         # Run the function with the loaded model
+#         result = get_model_and_importance_with_top10(model_name_arg, model_params, input_file_arg, output_dir_arg)
+#         print(json.dumps(result, indent=4))
+
+#     except Exception as e:
+#         print(json.dumps({"message": "An unexpected error occurred.", "error": str(e)}, indent=4))

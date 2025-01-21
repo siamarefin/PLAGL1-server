@@ -12,9 +12,13 @@ import pandas as pd
 import json
 import subprocess
 from pydantic import BaseModel
+from code.something import abc
+from code.extract_top10_features import get_model_and_importance_with_top10
 
 
 pandas2ri.activate()
+
+
 
 router = APIRouter(prefix='/operations', tags=['operation'])
 
@@ -194,6 +198,10 @@ async def batch_effect_correction(user_info: dict = Depends(verify_token)):
 
 
 
+from fastapi import APIRouter, Depends
+from code.code import process_file
+import os
+
 
 @router.get('/z_score_normalize')
 async def z_score_normalize(user_info: dict = Depends(verify_token)):
@@ -215,36 +223,19 @@ async def z_score_normalize(user_info: dict = Depends(verify_token)):
                 "error": f"File not found at {input_file}"
             }
 
-        # Run the Python script to normalize the data
-        command = ["python", "code/z_score_normalize.py", input_file, output_dir]
-        result = subprocess.run(
-            command,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True
-        )
+        # Run the normalization function
+        result = process_file(input_file, output_dir)
 
-        # Capture output and error
-        output = result.stdout.strip()
-        error = result.stderr.strip()
-
-        if result.returncode != 0:
+        # Check if normalization was successful
+        if result.get("message") == "Normalization completed successfully.":
             return {
-                "message": "Error running the normalization script.",
-                "error": error
-            }
-
-        # Parse the script's JSON output
-        response = eval(output)  # Convert the script's output to a Python dictionary
-        if response.get("message") == "Normalization completed successfully.":
-            return {
-                "message": response["message"],
-                "normalized_file": response["normalized_file"]
+                "message": result["message"],
+                "normalized_file": result["normalized_file"]
             }
         else:
             return {
                 "message": "Normalization failed.",
-                "error": response.get("error", "Unknown error")
+                "error": result.get("error", "Unknown error")
             }
 
     except Exception as e:
@@ -255,62 +246,55 @@ async def z_score_normalize(user_info: dict = Depends(verify_token)):
         }
 
 
+
+
+from code.code import visualize_dimensionality_reduction 
+
 @router.get('/visualize-dimensions')
-async def visualize_dimensions(user_info: dict = Depends(verify_token)):
+async def dimensionality_reduction(user_info: dict = Depends(verify_token)):
     """
-    API endpoint to visualize dimensionality reduction using PCA, t-SNE, and UMAP.
+    API endpoint to perform dimensionality reduction and create visualizations.
     """
     try:
-        # Define input and output paths
-        user_id = str(user_info['user_id']) 
+        # Define input file and output directory paths
+        user_id = str(user_info['user_id'])
         input_file = os.path.join(
             "code", user_id, "files", "z_score_normalized_data.csv"
         )
-        output_dir = os.path.join("code", user_id, "files")
+        output_dir = os.path.join("code", user_id, "visualizations")
 
-        # Verify input file exists
+        # Verify if the input file exists
         if not os.path.exists(input_file):
             return {
                 "message": "Input file not found.",
                 "error": f"File not found at {input_file}"
             }
 
-        # Run the Python script
-        command = ["python", "code/visualize_dimensionality_reduction.py", input_file, output_dir]
-        result = subprocess.run(
-            command,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True
-        )
+        # Call the visualization function
+        result = visualize_dimensionality_reduction(input_file, output_dir)
 
-        # Capture output and error
-        output = result.stdout.strip()
-        error = result.stderr.strip()
-
-        if result.returncode != 0:
+        # Check if the visualizations were successfully created
+        if result.get("message") == "Dimensionality reduction visualizations created successfully.":
             return {
-                "message": "Error running the visualization script.",
-                "error": error
+                "message": result["message"],
+                "visualizations": result
+            }
+        else:
+            return {
+                "message": "Visualization failed.",
+                "error": result.get("error", "Unknown error")
             }
 
-        # Parse the script's JSON output
-        response = eval(output)  # Convert the script's output to a Python dictionary
-        return response
-
     except Exception as e:
+        # Handle unexpected errors
         return {
             "message": "An unexpected error occurred.",
             "error": str(e)
         }
 
-
-
-
-
-
+from code.code import plot_correlation_clustermap
 @router.get('/plot-correlation-clustermap')
-async def plot_correlation_clustermap(user_info: dict = Depends(verify_token)):
+async def correlation_clustermap(user_info: dict = Depends(verify_token)):
     """
     API endpoint to generate a correlation clustermap.
     """
@@ -318,51 +302,29 @@ async def plot_correlation_clustermap(user_info: dict = Depends(verify_token)):
         # Define input and output paths
         user_id = str(user_info['user_id'])
         input_file = os.path.join("code", user_id, "files", "z_score_normalized_data.csv")
-        output_dir = os.path.join("code", user_id, "files")
+        output_dir = os.path.join("code", user_id, "visualizations")
         drop_column = "condition"
 
-        # Verify that the input file exists
+        # Verify if the input file exists
         if not os.path.exists(input_file):
             return {
                 "message": "Input file not found.",
                 "error": f"File not found at {input_file}"
             }
 
-        # Run the Python script
-        command = [
-            "python",
-            "code/plot_correlation_clustermap.py",
-            input_file,
-            output_dir,
-            drop_column
-        ]
+        # Call the `plot_correlation_clustermap` function
+        result = plot_correlation_clustermap(input_file, output_dir, drop_column)
 
-        result = subprocess.run(
-            command,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True
-        )
-
-        # Capture the script's output and error
-        output = result.stdout.strip()
-        error = result.stderr.strip()
-
-        if result.returncode != 0:
-            # Handle script errors
+        # Return the response from the function
+        if result.get("message") == "Correlation clustermap created successfully.":
             return {
-                "message": "Error running the correlation clustermap script.",
-                "error": error
+                "message": result["message"],
+                "output_files": result["output_files"]
             }
-
-        # Parse the script's JSON output
-        try:
-            response = json.loads(output)  # Ensure the script outputs valid JSON
-            return response
-        except json.JSONDecodeError:
+        else:
             return {
-                "message": "Error decoding JSON output from the script.",
-                "error": f"Raw output: {output}"
+                "message": "Clustermap generation failed.",
+                "error": result.get("error", "Unknown error")
             }
 
     except Exception as e:
@@ -371,10 +333,9 @@ async def plot_correlation_clustermap(user_info: dict = Depends(verify_token)):
             "message": "An unexpected error occurred.",
             "error": str(e)
         }
+    
 
-
-
-
+from code.code import feature_selection_and_model
 @router.get('/feature-selection-model')
 async def feature_selection_model(
     user_info: dict = Depends(verify_token),
@@ -387,40 +348,29 @@ async def feature_selection_model(
         # Define file paths
         user_id = str(user_info['user_id'])
         input_file = os.path.join("code", user_id, "files", "z_score_normalized_data.csv")
-        output_dir = os.path.join("code", user_id, "files")
+        output_dir = os.path.join("code", user_id, "model_outputs")
 
-        # Check if input file exists
+        # Verify input file exists
         if not os.path.exists(input_file):
             return {
                 "message": "Input file not found.",
                 "error": f"File not found at {input_file}"
             }
 
-        # Run the Python script
-        command = [
-            "python", "code/feature_selection_model.py",
-            input_file, output_dir, str(selection_ratio)
-        ]
-        result = subprocess.run(
-            command,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True
-        )
+        # Call the feature selection and model training function
+        result = feature_selection_and_model(input_file, output_dir, selection_ratio)
 
-        # Capture script output and error
-        output = result.stdout.strip()
-        error = result.stderr.strip()
+        # Parse the result returned by the function
+        parsed_result = json.loads(result)
 
-        if result.returncode != 0:
+        # Return the parsed response
+        if parsed_result.get("message") == "Feature selection and model training completed successfully.":
+            return parsed_result
+        else:
             return {
-                "message": "Error running the feature selection script.",
-                "error": error
+                "message": "Feature selection and model training failed.",
+                "error": parsed_result.get("error", "Unknown error")
             }
-
-        # Parse the script's JSON output
-        response = json.loads(output)
-        return response
 
     except Exception as e:
         return {
@@ -430,35 +380,37 @@ async def feature_selection_model(
 
 
 
+from code.code import benchmark_models
 
 @router.get('/find-best-model')
-async def find_best_model_api(user_info: dict = Depends(verify_token)):
-    """
-    API to benchmark models and find the best model.
-    """
+async def benchmark_models_api(user_info: dict = Depends(verify_token)):
     try:
-        # Define file paths
         user_id = str(user_info['user_id'])
-        input_file = os.path.join("code", user_id, "files", "selected_features.csv")
-        output_dir = os.path.join("code", user_id, "files")
+        input_file = os.path.join("code", user_id, "model_outputs", "selected_features.csv")
+        output_dir = os.path.join("code", user_id, "model_benchmarking")
+        os.makedirs(output_dir, exist_ok=True) 
+        
+        # Create output directory if it doesn't exist
+        os.makedirs(output_dir, exist_ok=True)
 
-        # Verify input file exists
         if not os.path.exists(input_file):
             return {"message": "Input file not found.", "error": f"File not found at {input_file}"}
 
-        # Run the Python script
-        command = ["python", "code/best_model_find.py", input_file, output_dir]
-        result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        result = benchmark_models(input_file, output_dir)
 
-        # Capture stdout and stderr
-        stdout = result.stdout.strip()
-        stderr = result.stderr.strip()
+        # Ensure result is a dictionary
+        if not isinstance(result, dict):
+            return {"message": "Unexpected error in model benchmarking.", "error": "Invalid return type from function"}
 
-        if result.returncode != 0:
-            return {"message": "Error running the model benchmarking script.", "error": stderr}
+        # Handle errors returned from benchmark_models
+        if "error" in result:
+            return {"message": "Model benchmarking failed.", "error": result["error"]}
 
-        # Return the CSV file path
-        return {"message": "Model benchmarking completed successfully.", "csv_file_path": stdout}
+        return {
+            "message": "Model benchmarking completed successfully.",
+            "metrics": result["metrics"],
+            "metrics_file": result["metrics_path"]
+        }
 
     except Exception as e:
         return {"message": "An unexpected error occurred.", "error": str(e)}
@@ -470,82 +422,55 @@ async def find_best_model_api(user_info: dict = Depends(verify_token)):
 
 
 
-
-
-
+from code.code import get_model_and_importance_with_top10, best_models
 from fastapi import Form
-
-global_model_name = "Extra Trees"
+global_model_name  = "Extra Trees" 
 
 @router.post('/top10-features')
 async def top10_features(model_name: str = Form(...), user_info: dict = Depends(verify_token)):
+
+
     """
-    API to process top 10 features based on the selected model name.
+    API endpoint to extract top 10 features for a selected model.
     """
     try:
-        global global_model_name
-
-        # Validate the model name
-        if not model_name:
-            raise HTTPException(status_code=400, detail="Model name is required.")
-
-        global_model_name = model_name
-
         # Define file paths
         user_id = str(user_info['user_id'])
-        input_file = os.path.join("code", user_id, "files", "selected_features.csv")
-        output_dir = os.path.join("code", user_id, "files")
-        best_models_file = os.path.join(output_dir, "best_models.json")
-
-        # Verify input file exists
-        if not os.path.exists(input_file):
-            raise HTTPException(status_code=400, detail=f"Input file not found at {input_file}")
-
-        # Verify best_models.json exists
-        if not os.path.exists(best_models_file):
-            raise HTTPException(status_code=400, detail=f"Best models file not found at {best_models_file}")
-
-        # Load the best_models.json file
-        with open(best_models_file, "r") as json_file:
-            best_models = json.load(json_file)
-
-        # Verify the selected model exists in best_models
-        if model_name not in best_models:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Model '{model_name}' not found in best_models.json. Available models: {list(best_models.keys())}"
-            )
-
-        # Pass the selected model's parameters to the script
-        model_params = json.dumps(best_models[model_name])  # Serialize model parameters to JSON
-
-        # Run the Python script
-        command = [
-            "python", "code/extract_top10_features.py",
-            model_name, input_file, output_dir, json.dumps(model_params)
-        ]
+        reduced_df_path = os.path.join("code", user_id, "model_outputs", "selected_features.csv")
+        output_dir = os.path.join("code", user_id, "model_outputs")
 
 
-        result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        global_model_name =  model_name 
 
-        # Capture stdout and stderr
-        stdout = result.stdout.strip()
-        stderr = result.stderr.strip()
+        # Load reduced DataFrame
+        if not os.path.exists(reduced_df_path):
+            return {"message": "Reduced DataFrame file not found.", "error": f"File not found at {reduced_df_path}"}
+        reduced_df = pd.read_csv(reduced_df_path)
 
-        if result.returncode != 0:
-            raise HTTPException(status_code=400, detail=f"Error: {stderr}")
+        # Check if the selected model exists
+        if global_model_name not in best_models:
+            return {"message": f"Model '{global_model_name}' not found in best models."}
 
-        # Check if the stdout is in JSON format
-        try:
-            response = json.loads(stdout)  # Attempt to parse stdout as JSON
-        except json.JSONDecodeError:
-            # If parsing fails, treat stdout as plain text
-            return {"message": f"Script completed successfully. Model name is {global_model_name}.","output": stdout}
+        # Call the function to get top 10 features
+        result = get_model_and_importance_with_top10(
+            metrics_df=None,  # Metrics are not needed for this function
+            best_models=best_models,
+            reduced_df=reduced_df,
+            selected_model_name=global_model_name,
+            output_dir=output_dir
+        )
 
-        return response
+        return {
+            "message": "Top 10 features extracted successfully.",
+            "top10_features": result["top10_features"],
+            "top10_features_file": result["top10_features_path"],
+            "top10_plot_file": result["top10_plot_path"]
+        }
 
     except Exception as e:
         return {"message": "An unexpected error occurred.", "error": str(e)}
+
+
 
 
 
