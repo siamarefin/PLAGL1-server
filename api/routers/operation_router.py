@@ -261,7 +261,7 @@ async def dimensionality_reduction(user_info: dict = Depends(verify_token)):
         input_file = os.path.join(
             "code", user_id, "files", "z_score_normalized_data.csv"
         )
-        output_dir = os.path.join("code", user_id, "visualizations")
+        output_dir = os.path.join("code", user_id, "files")
 
         # Verify if the input file exists
         if not os.path.exists(input_file):
@@ -302,7 +302,7 @@ async def correlation_clustermap(user_info: dict = Depends(verify_token)):
         # Define input and output paths
         user_id = str(user_info['user_id'])
         input_file = os.path.join("code", user_id, "files", "z_score_normalized_data.csv")
-        output_dir = os.path.join("code", user_id, "visualizations")
+        output_dir = os.path.join("code", user_id, "files")
         drop_column = "condition"
 
         # Verify if the input file exists
@@ -348,7 +348,7 @@ async def feature_selection_model(
         # Define file paths
         user_id = str(user_info['user_id'])
         input_file = os.path.join("code", user_id, "files", "z_score_normalized_data.csv")
-        output_dir = os.path.join("code", user_id, "model_outputs")
+        output_dir = os.path.join("code", user_id, "files")
 
         # Verify input file exists
         if not os.path.exists(input_file):
@@ -386,8 +386,8 @@ from code.code import benchmark_models
 async def benchmark_models_api(user_info: dict = Depends(verify_token)):
     try:
         user_id = str(user_info['user_id'])
-        input_file = os.path.join("code", user_id, "model_outputs", "selected_features.csv")
-        output_dir = os.path.join("code", user_id, "model_benchmarking")
+        input_file = os.path.join("code", user_id, "files", "selected_features.csv")
+        output_dir = os.path.join("code", user_id, "files")
         os.makedirs(output_dir, exist_ok=True) 
         
         # Create output directory if it doesn't exist
@@ -436,8 +436,8 @@ async def top10_features(model_name: str = Form(...), user_info: dict = Depends(
     try:
         # Define file paths
         user_id = str(user_info['user_id'])
-        reduced_df_path = os.path.join("code", user_id, "model_outputs", "selected_features.csv")
-        output_dir = os.path.join("code", user_id, "model_outputs")
+        reduced_df_path = os.path.join("code", user_id, "files", "selected_features.csv")
+        output_dir = os.path.join("code", user_id, "files")
 
 
         global_model_name =  model_name 
@@ -473,101 +473,79 @@ async def top10_features(model_name: str = Form(...), user_info: dict = Depends(
 
 
 
+from code.code import visualize_dimensionality_reduction
 
-@router.get('/visualize-dimensions_10_feature')
-async def visualize_dimensions(user_info: dict = Depends(verify_token)):
-    """
-    API endpoint to visualize dimensionality reduction using PCA, t-SNE, and UMAP.
-    """
-    try:
-        # Define input and output paths
-        user_id = str(user_info['user_id'])
-        input_file = os.path.join(
-        "code", user_id, "files", f"top10_features_data.csv"
-        )
-        output_dir = os.path.join("code", user_id, "files")
-
-        # Verify input file exists
-        if not os.path.exists(input_file):
-            return {
-                "message": "Input file not found.",
-                "error": f"File not found at {input_file}"
-            }
-
-        # Run the Python script
-        command = ["python", "code/visualize_dimensions_10_feature.py",input_file,output_dir]
-        result = subprocess.run(
-            command,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True
-        )
-
-        # Capture output and error
-        output = result.stdout.strip()
-        error = result.stderr.strip()
-
-        if result.returncode != 0:
-            return {
-                "message": "Error running the visualization script.",
-                "error": error
-            }
-
-        # Parse the script's JSON output
-        response = eval(output)  # Convert the script's output to a Python dictionary
-        return response
-
-    except Exception as e:
-        return {
-            "message": "An unexpected error occurred.",
-            "error": str(e)
-        }
-
-
-
-
-@router.post('/evaluate-single-features')
-async def evaluate_features(
+@router.get('/visualize_dimensionality_reduction_final')
+async def visualize_dimensions_api(
     user_info: dict = Depends(verify_token)
 ):
     """
-    API to evaluate single feature models based on the selected model.
+    API endpoint to perform dimensionality reduction visualization (PCA, t-SNE, UMAP).
     """
     try:
         # Define file paths
         user_id = str(user_info['user_id'])
-        input_file = os.path.join("code", user_id, "files", f"top10_features_data.csv")
+        input_file = os.path.join("code", user_id, "files", "top10_features_Extra Trees.csv")
         output_dir = os.path.join("code", user_id, "files")
 
-        # Validate inputs
+        # Ensure the input file exists
         if not os.path.exists(input_file):
-            raise HTTPException(status_code=400, detail=f"Input file not found at {input_file}")
+            return {"message": "Input file not found.", "error": f"File not found at {input_file}"}
 
-        if not global_model_name:
-            raise HTTPException(status_code=400, detail="Model name is required.")
+        # Create the output directory if it doesn't exist
+        os.makedirs(output_dir, exist_ok=True)
 
-        # Run the Python script
-        command = [
-            "python", "code/single_feature_models_performance.py",
-            input_file, output_dir, global_model_name
-        ]
-        result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        # Call the function to generate visualizations
+        result = visualize_dimensionality_reduction(input_file, output_dir)
 
-        # Capture stdout and stderr
-        stdout = result.stdout.strip()
-        stderr = result.stderr.strip()
+        # Check for errors in the result
+        if "error" in result:
+            return {"message": "Visualization failed.", "error": result["error"]}
 
-        if result.returncode != 0:
-            raise HTTPException(status_code=400, detail=f"Error: {stderr}")
+        return {
+            "message": result["message"],
+            "combined_visualization": result["Combined"]
+        }
 
-        # Parse the script's JSON response
-        try:
-            response = json.loads(stdout)  # Attempt to parse stdout as JSON
-        except json.JSONDecodeError:
-            # If parsing fails, return raw stdout as a fallback
-            return {"message": "Script completed successfully.", "output": stdout}
+    except Exception as e:
+        return {"message": "An unexpected error occurred.", "error": str(e)}
 
-        return response
+
+
+from code.code import rank_features, param_grids, classifiers
+
+@router.get('/evaluate-single-features')
+async def rank_features_api(
+    user_info: dict = Depends(verify_token)
+):
+    """
+    API endpoint to rank features based on individual model performance metrics.
+    """
+    try:
+        # Define file paths
+        user_id = str(user_info['user_id'])
+        input_file = os.path.join("code", user_id, "files", "top10_features_Extra Trees.csv")
+        output_dir = os.path.join("code", user_id, "files")
+
+        # Ensure the input file exists
+        if not os.path.exists(input_file):
+            return {"message": "Input file not found.", "error": f"File not found at {input_file}"}
+
+        # Create output directory if it doesn't exist
+        os.makedirs(output_dir, exist_ok=True)
+
+        # Call the feature ranking function
+        result = rank_features(input_file, global_model_name, param_grids, classifiers, output_dir)
+
+        # Check for errors in the result
+        if "error" in result:
+            return {"message": "Feature ranking failed.", "error": result["error"]}
+
+        return {
+            "message": result["message"],
+            "ranking_file": result["ranking_file"],
+            "metrics": result["metrics"]
+        }
 
     except Exception as e:
         return {"message": "An unexpected error occurred.", "error": str(e)}
@@ -576,109 +554,114 @@ async def evaluate_features(
 
 
 
-@router.post('/evaluate-top-features')
-async def evaluate_top_features_api(
+
+from code.code import evaluate_model_with_features
+
+@router.post('/evaluate_model_with_features')
+async def evaluate_model_features_api(
     user_info: dict = Depends(verify_token)
 ):
     """
-    API to evaluate model performance with varying numbers of top features.
+    API endpoint to evaluate models with varying numbers of top features.
     """
     try:
         # Define file paths
         user_id = str(user_info['user_id'])
-        input_file = os.path.join("code", user_id, "files", f"{global_model_name}_top10_features_data.csv")
+        input_file = os.path.join("code", user_id, "files", "top10_features_Extra Trees.csv")
         output_dir = os.path.join("code", user_id, "files")
 
-        # Verify the input file exists  
-        if not os.path.exists(input_file):   
-            raise HTTPException(
-                status_code=400,
-                detail=f"Input file not found at {input_file}"
-            )
+        # Ensure the input file exists
+        if not os.path.exists(input_file):
+            return {"message": "Input file not found.", "error": f"File not found at {input_file}"}
 
-        # Run the Python script siam 
-        command = [
-            "python", "code/evaluate_top_features.py", input_file, output_dir, global_model_name
-        ]
-        result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        # Call the function
+        result = evaluate_model_with_features(input_file, global_model_name, param_grids, classifiers, output_dir)
 
-        # Capture stdout and stderr
-        stdout = result.stdout.strip()
-        stderr = result.stderr.strip()
+        # Handle errors
+        if "error" in result:
+            return {"message": "Evaluation failed.", "error": result["error"]}
 
-        if result.returncode != 0:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Error occurred during execution: {stderr}"
-            )
+        return {
+            "message": result["message"],
+            "metrics_file": result["metrics_file"],
+            "plot_png": result["plot_png"],
+            "plot_pdf": result["plot_pdf"],
+            "metrics": result["metrics"]
+        }
 
-        # Parse the script output
-        try:
-            response = json.loads(stdout)
-        except json.JSONDecodeError:
-            response = {"message": "Script completed successfully.", "output": stdout}
+    except Exception as e:
+        return {"message": "An unexpected error occurred.", "error": str(e)}
 
-        return response
+
+from code.code import visualize_dimensionality_reduction_final
+
+@router.get('/visualize_dimensionality_reduction_final')
+async def visualize_dimensions_api(
+    user_info: dict = Depends(verify_token)
+):
+    """
+    API endpoint to perform dimensionality reduction visualization (PCA, t-SNE, UMAP).
+    """
+    try:
+        # Define file paths
+        user_id = str(user_info['user_id'])
+        input_file = os.path.join("code", user_id, "files", "final_selected_features_auprc.csv")
+        output_dir = os.path.join("code", user_id, "files")
+
+        # Ensure the input file exists
+        if not os.path.exists(input_file):
+            return {"message": "Input file not found.", "error": f"File not found at {input_file}"}
+
+        # Create the output directory if it doesn't exist
+        os.makedirs(output_dir, exist_ok=True)
+
+        # Call the function to generate visualizations
+        result = visualize_dimensionality_reduction_final(input_file, output_dir)
+
+        # Check for errors in the result
+        if "error" in result:
+            return {"message": "Visualization failed.", "error": result["error"]}
+
+        return {
+            "message": result["message"],
+            "combined_visualization": result["Combined"]
+        }
 
     except Exception as e:
         return {"message": "An unexpected error occurred.", "error": str(e)}
 
 
 
+from code.code import evaluate_final_model
 
-
-@router.get('/evaluate-model-performance')
-async def visualize_dimensions(user_info: dict = Depends(verify_token)):
+@router.get('/evaluate-final-model')
+async def evaluate_final_model_api(
+    user_info: dict = Depends(verify_token)
+):
     """
-    API endpoint to visualize dimensionality reduction using PCA, t-SNE, and UMAP.
+    API endpoint to evaluate the final model and save results.
     """
     try:
-        # Define input and output paths
+        # Define file paths
         user_id = str(user_info['user_id'])
-        input_file = os.path.join(
-            "code", user_id, "files", f"{global_model_name}_best_features.csv"
-        )
+        final_df_path = os.path.join("code", user_id, "files", "final_selected_features_auprc.csv")
         output_dir = os.path.join("code", user_id, "files")
 
-        # Verify input file exists
-        if not os.path.exists(input_file):
-            return {
-                "message": "Input file not found.",
-                "error": f"File not found at {input_file}"
-            }
+        # Ensure the input file exists
+        if not os.path.exists(final_df_path):
+            return {"message": "Input file not found.", "error": f"File not found at {final_df_path}"}
 
-        # Run the Python script
-        command = ["python", "code/evaluate-model-performance.py", input_file, output_dir,global_model_name]
-        result = subprocess.run(
-            command,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True
-        )
+        # Call the function
+        result = evaluate_final_model(final_df_path, global_model_name, param_grids, classifiers, output_dir)
 
-        # Capture output and error
-        output = result.stdout.strip()
-        error = result.stderr.strip()
+        # Handle errors
+        if "error" in result:
+            return {"message": "Evaluation failed.", "error": result["error"]}
 
-        if result.returncode != 0:
-            return {
-                "message": "Error running the visualization script.",
-                "error": error
-            }
-
-        # Parse the script's JSON output
-        response = eval(output)  # Convert the script's output to a Python dictionary
-        return response
+        return result
 
     except Exception as e:
-        return {
-            "message": "An unexpected error occurred.",
-            "error": str(e)
-        }
-
-
-
-
+        return {"message": "An unexpected error occurred.", "error": str(e)}
 
 
 
