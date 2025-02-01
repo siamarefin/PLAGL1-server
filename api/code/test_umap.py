@@ -1,8 +1,6 @@
-from umap import UMAP
-import numpy as np
+import umap.umap_ as umap  # Correct import
 
-X = np.random.rand(100, 5)
-umap_model = UMAP(n_components=2, random_state=42)
-embedding = umap_model.fit_transform(X)
+# Initialize UMAP model
+umap_model = umap.UMAP(n_components=2, n_neighbors=15, min_dist=0.1, random_state=42)
 
-print("UMAP embedding shape:", embedding.shape)
+print("UMAP imported successfully!3")

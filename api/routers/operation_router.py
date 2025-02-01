@@ -12,8 +12,6 @@ import pandas as pd
 import json
 import subprocess
 from pydantic import BaseModel
-from code.something import abc
-from code.extract_top10_features import get_model_and_importance_with_top10
 
 
 pandas2ri.activate()
@@ -473,9 +471,9 @@ async def top10_features(model_name: str = Form(...), user_info: dict = Depends(
 
 
 
-from code.code import visualize_dimensionality_reduction
+from code.code import visualize_dimensionality_reduction_feature
 
-@router.get('/visualize_dimensionality_reduction_final')
+@router.get('/visualize_dimensionality_reduction_feature')
 async def visualize_dimensions_api(
     user_info: dict = Depends(verify_token)
 ):
@@ -496,7 +494,7 @@ async def visualize_dimensions_api(
         os.makedirs(output_dir, exist_ok=True)
 
         # Call the function to generate visualizations
-        result = visualize_dimensionality_reduction(input_file, output_dir)
+        result = visualize_dimensionality_reduction_feature(input_file, output_dir)
 
         # Check for errors in the result
         if "error" in result:

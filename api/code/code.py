@@ -20,6 +20,7 @@ def process_file(input_file, output_dir):
     Process the input file to normalize data and save results.
     """
     try:
+        
         # Read the input CSV file
         main_df = pd.read_csv(input_file)
         
@@ -59,7 +60,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.decomposition import PCA
 from sklearn.manifold import TSNE
-import  umap 
+import umap.umap_ as umap  # Correct import
 import os
 
 # Set random seed for reproducibility
@@ -692,7 +693,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.decomposition import PCA
 from sklearn.manifold import TSNE
-import umap
+import umap.umap_ as umap
 import os
 from datetime import datetime
 
@@ -700,7 +701,7 @@ from datetime import datetime
 random_seed = 123
 
 # Function for visualization using dimensionality reduction (PCA, t-SNE, UMAP)
-def visualize_dimensionality_reduction(input_file, output_dir):
+def visualize_dimensionality_reduction_feature(input_file, output_dir):
     try:
         # Read the input data
         df = pd.read_csv(input_file)
