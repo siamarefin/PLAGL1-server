@@ -1083,3 +1083,102 @@ def run_r_script(script_name, args=None):
 
 # best()
 
+
+#  String api call code 
+
+
+
+# Define the request body schema
+class MappingPlottingRequest(BaseModel):
+    species_name: str
+    gene_symbols: list[str]
+
+@router.post("/mapping")
+async def run_mapping_plotting(request: MappingPlottingRequest):
+    """
+    API to run Workflow_Mapping_Plotting_Input_Genes.R and save results.
+
+
+    {
+    "species_name": "Homo sapiens",
+    "gene_symbols": ["ZNF212", "ZNF451", "PLAGL1", "NFAT5", "ICAM5", "RRAD"]
+}
+
+
+    """
+    try:
+        # Define file paths
+        r_script_path = "string/String_Sources_Update_v1.R"
+        output_dir = "files"
+        os.makedirs(output_dir, exist_ok=True)
+
+        # Convert gene symbols list to JSON string
+        gene_symbols_json = json.dumps(request.gene_symbols)
+
+        # Run the R script
+        command = ["Rscript", r_script_path, request.species_name, gene_symbols_json, output_dir]
+        result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+
+        # Capture stdout and stderr
+        stdout_output = result.stdout.strip()
+        stderr_output = result.stderr.strip()
+
+        # Check for errors
+        if result.returncode != 0:
+            return {"message": "Error running R script", "error": stderr_output}
+
+        return {
+            "message": "Workflow completed successfully!",
+            "output_directory": output_dir,
+            "stdout": stdout_output
+        }
+
+    except Exception as e:
+        return {"message": "Unexpected error", "error": str(e)}
+# Define the request body schema
+class MappingPlottingRequest(BaseModel):
+    species_name: str
+    gene_symbols: list[str]
+
+@router.post("/full")
+async def run_mapping_plotting(request: MappingPlottingRequest):
+    """
+    API to run Workflow_Mapping_Plotting_Input_Genes.R and save results.
+
+
+    {
+    "species_name": "Homo sapiens",
+    "gene_symbols": ["ZNF212", "ZNF451", "PLAGL1", "NFAT5", "ICAM5", "RRAD"]
+}
+
+
+    """
+    try:
+        # Define file paths
+        r_script_path = "string/String_Sources_Update_v1.R"
+        output_dir = "files"
+        os.makedirs(output_dir, exist_ok=True)
+
+        # Convert gene symbols list to JSON string
+        gene_symbols_json = json.dumps(request.gene_symbols)
+
+        # Run the R script
+        command = ["Rscript", r_script_path, request.species_name, gene_symbols_json, output_dir]
+        result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+
+        # Capture stdout and stderr
+        stdout_output = result.stdout.strip()
+        stderr_output = result.stderr.strip()
+
+        # Check for errors
+        if result.returncode != 0:
+            return {"message": "Error running R script", "error": stderr_output}
+
+        return {
+            "message": "Workflow completed successfully!",
+            "output_directory": output_dir,
+            "stdout": stdout_output
+        }
+
+    except Exception as e:
+        return {"message": "Unexpected error", "error": str(e)}
