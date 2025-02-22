@@ -9,7 +9,7 @@ install_and_load <- function(packages) {
 
 setup_stringdb_environment <- function() {
   # Define required libraries
-  required_packages <- c("STRINGdb", "dplyr", "readr", "ggplot2")
+  required_packages <- c("STRINGdb", "dplyr", "readr", "ggplot2", "stringr")
   
   # Install and load required packages
   install_and_load(required_packages)
@@ -28,18 +28,13 @@ initialize_stringdb <- function(species_unique_id, score_threshold = 150) {
 
 # Define the function to extract taxon_ID by Species Name
 get_taxon_id <- function(data, species_name) {
-  # Check if the expected columns exist
-  if (!("Species_Name" %in% colnames(data)) || !("taxon_ID" %in% colnames(data))) {
-    stop("Error: Expected columns 'Species_Name' and 'taxon_ID' not found in the dataset.")
-  }
-
-  # Filter the dataset for the given species name
+  # Filter the data to find the species
   result <- data[data$Species_Name == species_name, "taxon_ID"]
-
+  
   # Check if a match was found
   if (length(result) == 0) {
-    stop(paste("Error: Species", species_name, "not found in the dataset."))
+    return("Species not found")
   } else {
-    return(as.integer(result[1]))  # Convert to integer and return first match
+    return(result)
   }
 }

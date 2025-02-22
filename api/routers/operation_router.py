@@ -1135,35 +1135,49 @@ async def run_mapping_plotting(request: MappingPlottingRequest):
 
     except Exception as e:
         return {"message": "Unexpected error", "error": str(e)}
+
+
+
+
 # Define the request body schema
 class MappingPlottingRequest(BaseModel):
     species_name: str
     gene_symbols: list[str]
+    clustering_method1: str
+    clustering_method2: str
 
-@router.post("/full")
-async def run_mapping_plotting(request: MappingPlottingRequest):
+@router.post("/string")
+async def run_mapping_plotting(request: MappingPlottingRequest, user_info: dict = Depends(verify_token)):
     """
     API to run Workflow_Mapping_Plotting_Input_Genes.R and save results.
 
-
+    Example input:
     {
-    "species_name": "Homo sapiens",
-    "gene_symbols": ["ZNF212", "ZNF451", "PLAGL1", "NFAT5", "ICAM5", "RRAD"]
-}
-
-
+        "species_name": "Homo sapiens",
+        "gene_symbols": ["ZNF212", "ZNF451", "PLAGL1", "NFAT5", "ICAM5", "RRAD"],
+        "clustering_method": "fastgreedy"
+    }
     """
     try:
         # Define file paths
-        r_script_path = "string/String_Sources_Update_v1.R"
-        output_dir = "files"
+        user_id = str(user_info['user_id'])
+        r_script_path = "string/String_Workflow_Update_v3_Feb19.R"
+        output_dir = os.path.join("code", user_id, "files")
         os.makedirs(output_dir, exist_ok=True)
 
         # Convert gene symbols list to JSON string
         gene_symbols_json = json.dumps(request.gene_symbols)
 
-        # Run the R script
-        command = ["Rscript", r_script_path, request.species_name, gene_symbols_json, output_dir]
+        # Run the R script with species_name, gene_symbols_json, clustering_method, and output_dir as arguments
+        command = [
+            "Rscript",
+            r_script_path,
+            request.species_name,
+            gene_symbols_json,
+            request.clustering_method1,
+            request.clustering_method2,
+            output_dir
+        ]
         result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
 
         # Capture stdout and stderr

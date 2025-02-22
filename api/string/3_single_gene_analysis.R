@@ -31,13 +31,7 @@ get_single_gene_interactions <- function(string_db, single_string_id) {
 }
 
 # Function to plot the network based on the retrieved interactions
-plot_gene_interaction_network <- function(string_db, combined_targets, gene_symbol) {
+plot_gene_interaction_network <- function(string_db, combined_targets) {
   string_db$plot_network(combined_targets)
-  
-  # Correcting title function by properly concatenating the text
-  title_text <- paste("PPI of", gene_symbol)  # Create a proper title string
-  
-  # Left-align title with a smaller font size
-  mtext(title_text, side = 3, adj = 0, line = 1.2, col = "black", font = 2, cex = 0.8)
 }
 
